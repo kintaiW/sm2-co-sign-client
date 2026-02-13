@@ -1,0 +1,28 @@
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Build artifacts
+target/
+
+# Logs
+*.log
+
+# Temporary files
+.DS_Store
+*~
+
+# Environment variables
+.env
+.env.local
+
+# Test artifacts
+test_ffi
+test.txt
+
+# Local secrets (user credentials for testing)
+.user_id
+.token
+.public_key
+.d1
