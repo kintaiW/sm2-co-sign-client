@@ -97,6 +97,12 @@ impl CoSignProtocol {
 
     /// 完成签名计算
     /// 注意：此功能是协同签名协议特有步骤，gm-sdk-rs 不支持
+    ///
+    /// 数学原理（d = d1·d2Inv - 1, 1+d = d1·d2Inv）：
+    ///   服务端返回: s2 = d2·k3, s3 = d2·(k2+r)
+    ///   s = (k1·s2 + s3 - r·d1) · d1⁻¹ mod n
+    ///   展开验证：(k1·d2·k3 + d2·(k2+r) - r·d1)·d1⁻¹
+    ///           = (d2·(k1·k3+k2+r) - r·d1)·d1⁻¹ = s ✓
     pub fn complete_signature(
         &self,
         k1: &[u8],
@@ -106,23 +112,26 @@ impl CoSignProtocol {
         s3: &[u8],
     ) -> Result<(Vec<u8>, Vec<u8>)> {
         let n = self.ecc.get_n();
-        
+
         let k1_big = BigUint::from_bytes_be(k1);
         let d1_big = BigUint::from_bytes_be(d1);
         let r_big = BigUint::from_bytes_be(r);
         let s2_big = BigUint::from_bytes_be(s2);
         let s3_big = BigUint::from_bytes_be(s3);
-        
+
+        // s = (k1·s2 + s3 - r·d1) · d1⁻¹ mod n
+        // Reason: 服务端用 d2 计算 s2/s3，客户端需乘 d1⁻¹ 来抵消 d1，还原标准 SM2 签名
+        let k1_s2 = (&k1_big * &s2_big) % n;
         let r_d1 = (&r_big * &d1_big) % n;
-        let k1_s3 = (&k1_big * &s3_big) % n;
-        let s1 = if k1_s3 >= r_d1 {
-            (&k1_s3 - &r_d1) % n
-        } else {
-            (&k1_s3 + n - &r_d1) % n
-        };
-        
-        let s = (&s1 * &s2_big) % n;
-        
+        // 加 n 避免下溢（BigUint 无符号）
+        let inner = (k1_s2 + s3_big + n - r_d1) % n;
+
+        // 用费马小定理求 d1 模逆：d1⁻¹ = d1^(n-2) mod n（n 为素数）
+        let n_minus_2 = n - BigUint::from(2u32);
+        let d1_inv = d1_big.modpow(&n_minus_2, n);
+
+        let s = (inner * d1_inv) % n;
+
         Ok((r.to_vec(), s.to_bytes_be()))
     }
 

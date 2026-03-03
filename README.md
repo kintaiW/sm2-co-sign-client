@@ -1,6 +1,10 @@
 # SM2 协同签名客户端
 
+[![文档](https://img.shields.io/badge/文档-GitHub%20Pages-blue)](https://kintaiW.github.io/sm2-co-sign-client/)
+
 基于 Rust 实现的 SM2 协同签名客户端，提供完整的协同签名协议实现，支持密钥分片、协同签名和协同解密功能。
+
+> 📖 **在线文档**：[https://kintaiW.github.io/sm2-co-sign-client/](https://kintaiW.github.io/sm2-co-sign-client/)
 
 ## 项目概述
 
