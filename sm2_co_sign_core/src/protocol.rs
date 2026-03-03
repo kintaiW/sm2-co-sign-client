@@ -160,20 +160,75 @@ impl CoSignProtocol {
     }
 
     /// 完成解密计算
+    ///
+    /// 数学原理：
+    ///   d * C1 = (d1·d2⁻¹ - 1)·C1 = d2⁻¹·d1·C1 - C1 = T2 - C1
+    /// 所以共享点 = T2 - C1（椭圆曲线点减法）
+    /// 再用 KDF 派生密钥流解密 C2，并用 C3 做完整性校验。
+    ///
+    /// 参数：
+    ///   t2:  服务端返回的 T2 = d2Inv * T1（64字节，x||y）
+    ///   c1:  密文中的 C1 坐标（64字节，无04前缀，x||y）
+    ///   c3:  完整性校验哈希（32字节）
+    ///   c2:  加密后的密文数据
     pub fn complete_decryption(
         &self,
         t2: &[u8],
-        _c3: &[u8],
+        c1: &[u8],
+        c3: &[u8],
         c2: &[u8],
     ) -> Result<Vec<u8>> {
-        let k = Self::sm3_hash(t2);
-        
-        let plaintext: Vec<u8> = c2
-            .iter()
-            .enumerate()
-            .map(|(i, &b)| b ^ k[i % k.len()])
-            .collect();
-        
+        if t2.len() != 64 {
+            return Err(Error::Crypto("Invalid T2 length, expected 64 bytes".to_string()));
+        }
+        if c1.len() != 64 {
+            return Err(Error::Crypto("Invalid C1 length, expected 64 bytes".to_string()));
+        }
+
+        // 解析 T2 和 C1 为椭圆曲线点
+        let t2_x = libsm::sm2::field::FieldElem::from_bytes(&t2[0..32])
+            .map_err(|e| Error::Crypto(e.to_string()))?;
+        let t2_y = libsm::sm2::field::FieldElem::from_bytes(&t2[32..64])
+            .map_err(|e| Error::Crypto(e.to_string()))?;
+        let t2_point = self.ecc.new_point(&t2_x, &t2_y)
+            .map_err(|e| Error::Crypto(e.to_string()))?;
+
+        let c1_x = libsm::sm2::field::FieldElem::from_bytes(&c1[0..32])
+            .map_err(|e| Error::Crypto(e.to_string()))?;
+        let c1_y = libsm::sm2::field::FieldElem::from_bytes(&c1[32..64])
+            .map_err(|e| Error::Crypto(e.to_string()))?;
+        let c1_point = self.ecc.new_point(&c1_x, &c1_y)
+            .map_err(|e| Error::Crypto(e.to_string()))?;
+
+        // 计算共享点 = T2 - C1（即 T2 + (-C1)）
+        // Reason: d·C1 = (d1·d2⁻¹-1)·C1 = T2 - C1，需减去 C1 才能得到正确的共享点
+        let neg_c1 = self.ecc.neg(&c1_point)
+            .map_err(|e| Error::Crypto(e.to_string()))?;
+        let shared_point = self.ecc.add(&t2_point, &neg_c1)
+            .map_err(|e| Error::Crypto(e.to_string()))?;
+
+        let (sx, sy) = self.ecc.to_affine(&shared_point)
+            .map_err(|e| Error::Crypto(e.to_string()))?;
+        let sx_bytes = sx.to_bytes();
+        let sy_bytes = sy.to_bytes();
+
+        // 拼接完整的共享点坐标（各补零到32字节）
+        let mut shared_coord = vec![0u8; 64];
+        shared_coord[32 - sx_bytes.len()..32].copy_from_slice(&sx_bytes);
+        shared_coord[64 - sy_bytes.len()..64].copy_from_slice(&sy_bytes);
+
+        // 用 KDF 派生密钥流，解密 C2
+        let key_stream = Self::kdf(&shared_coord, c2.len());
+        let plaintext: Vec<u8> = c2.iter().zip(key_stream.iter()).map(|(c, k)| c ^ k).collect();
+
+        // 校验 C3 完整性：C3 = SM3(shared_x || shared_y || plaintext)
+        let mut c3_input = shared_coord.to_vec();
+        c3_input.extend_from_slice(&plaintext);
+        let c3_check = Self::sm3_hash(&c3_input);
+        if c3_check != c3 {
+            return Err(Error::Crypto("Decryption integrity check failed (C3 mismatch)".to_string()));
+        }
+
         Ok(plaintext)
     }
 
@@ -189,16 +244,28 @@ impl CoSignProtocol {
     /// SM2 验签（标准验签，非协同）
     /// 使用 gm-sdk-rs 提供的简洁 API
     pub fn verify(public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<bool> {
-        if public_key.len() != 64 || signature.len() != 64 {
-            return Err(Error::Crypto("Invalid public key or signature length".to_string()));
+        if signature.len() != 64 {
+            return Err(Error::Crypto("Invalid signature length, expected 64 bytes".to_string()));
         }
-        
-        let pk: [u8; 64] = public_key.try_into()
-            .map_err(|_| Error::Crypto("Invalid public key length".to_string()))?;
+
+        // Reason: gm-sdk-rs 更新后 sm2_verify 要求公钥为 65 字节（含 0x04 前缀）
+        // 兼容外部传入 64 字节（无前缀）和 65 字节（含前缀）两种格式
+        let pk65: [u8; 65] = if public_key.len() == 65 {
+            public_key.try_into()
+                .map_err(|_| Error::Crypto("Invalid public key".to_string()))?
+        } else if public_key.len() == 64 {
+            let mut buf = [0u8; 65];
+            buf[0] = 0x04;
+            buf[1..].copy_from_slice(public_key);
+            buf
+        } else {
+            return Err(Error::Crypto("Invalid public key length, expected 64 or 65 bytes".to_string()));
+        };
+
         let sig: [u8; 64] = signature.try_into()
             .map_err(|_| Error::Crypto("Invalid signature length".to_string()))?;
-        
-        Ok(sm2_verify(&pk, message, &sig))
+
+        Ok(sm2_verify(&pk65, message, &sig))
     }
 
     /// SM2 加密（标准加密，非协同）

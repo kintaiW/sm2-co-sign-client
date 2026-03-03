@@ -585,7 +585,7 @@ dependencies = [
 [[package]]
 name = "gm-sdk-rs"
 version = "0.1.0"
-source = "git+https://github.com/kintaiW/gm-sdk-rs.git#d8f507d25bff5b72e191725d5c3aed6ad42db1ec"
+source = "git+ssh://git@github.com/kintaiW/gm-sdk-rs.git#f1d6bd495a6c2715a0a4369b11b311a68f1af3c4"
 dependencies = [
  "crypto-bigint 0.6.1",
  "elliptic-curve",

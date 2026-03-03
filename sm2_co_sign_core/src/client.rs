@@ -328,12 +328,13 @@ impl CoSignClient {
             return Err(Error::InvalidParam("Ciphertext too short".to_string()));
         }
 
-        let c1 = &ciphertext[0..65];
+        let c1_full = &ciphertext[0..65];            // 含04前缀，传给 decrypt_prepare
+        let c1_coords = &ciphertext[1..65];           // 去掉04前缀，传给 complete_decryption
         let c3 = &ciphertext[65..97];
         let c2 = &ciphertext[97..];
 
         // 计算预处理 T1
-        let t1 = self.protocol.decrypt_prepare(&key_pair.d1, c1)?;
+        let t1 = self.protocol.decrypt_prepare(&key_pair.d1, c1_full)?;
         let t1_base64 = base64_encode(&t1);
 
         // 发送解密请求
@@ -368,7 +369,7 @@ impl CoSignClient {
         let t2 = base64_decode(&data.t2)?;
 
         // 完成解密
-        let plaintext = self.protocol.complete_decryption(&t2, c3, c2)?;
+        let plaintext = self.protocol.complete_decryption(&t2, c1_coords, c3, c2)?;
 
         debug!("Decryption completed successfully");
         Ok(plaintext)
