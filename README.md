@@ -52,7 +52,7 @@ client/
 
 ### 国密算法库
 
-本项目使用 [gm-sdk-rs](https://github.com/kintaiW/gm-sdk-rs.git) 作为国密算法实现：
+本项目使用 [gm-sdk-rs](https://github.com/kintaiW/gm-sdk-rs) 作为国密算法实现：
 
 - SM2：椭圆曲线公钥密码算法
 - SM3：密码杂凑算法
@@ -87,7 +87,7 @@ cargo build
 # 运行测试
 cargo test
 
-# 运行集成测试（需要后台服务运行在 127.0.0.1:8080）
+# 运行集成测试（需要后台服务运行在 127.0.0.1:9002）
 cargo test --test integration_test
 ```
 
@@ -193,7 +193,7 @@ cargo build --release --bin sm2-cosign
 所有命令都支持 `-s` 或 `--server` 参数指定服务端地址：
 
 ```bash
-./target/release/sm2-cosign -s http://192.168.1.100:8080 health
+./target/release/sm2-cosign -s http://192.168.1.100:9002 health
 ```
 
 ## FFI 动态库编译
@@ -293,7 +293,7 @@ use sm2_co_sign_core::{CoSignClient, ClientConfig, CoSignProtocol};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 创建客户端配置
     let config = ClientConfig {
-        server_url: "http://127.0.0.1:8080".to_string(),
+        server_url: "http://127.0.0.1:9002".to_string(),
         timeout: 30,
         verify_tls: false,
     };
@@ -407,7 +407,7 @@ cargo test test_sm2_sign_verify
 ### 集成测试
 
 ```bash
-# 确保后台服务运行在 127.0.0.1:8080
+# 确保后台服务运行在 127.0.0.1:9002
 cargo test --test integration_test
 ```
 

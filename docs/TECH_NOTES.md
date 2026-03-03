@@ -256,7 +256,7 @@ s = s1 · s2
 
 ```bash
 # 克隆仓库
-git clone https://github.com/sm2-cosign/client.git
+git clone git@github.com:kintaiW/sm2-co-sign-client.git
 cd client
 
 # 构建
@@ -526,9 +526,9 @@ std::fs::write("d1.enc", &encrypted)?;
 
 ## 联系方式
 
-- 项目地址: [GitHub](https://github.com/sm2-cosign/client)
-- 问题反馈: [Issues](https://github.com/sm2-cosign/client/issues)
-- 技术讨论: [Discussions](https://github.com/sm2-cosign/client/discussions)
+- 项目地址: [GitHub](https://github.com/kintaiW/sm2-co-sign-client)
+- 问题反馈: [Issues](https://github.com/kintaiW/sm2-co-sign-client/issues)
+- 技术讨论: [Discussions](https://github.com/kintaiW/sm2-co-sign-client/discussions)
 
 ---
 
