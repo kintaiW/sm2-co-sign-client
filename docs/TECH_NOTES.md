@@ -298,7 +298,7 @@ use sm2_co_sign_core::{CoSignClient, ClientConfig};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ClientConfig {
-        server_url: "http://127.0.0.1:9002".to_string(),
+        server_url: "http://127.0.0.1:7094".to_string(),
         timeout: 30,
         verify_tls: false,
     };

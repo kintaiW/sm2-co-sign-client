@@ -9,7 +9,7 @@ use std::path::PathBuf;
 #[command(about = "SM2 协同签名客户端工具", long_about = None)]
 struct Cli {
     /// 服务器地址
-    #[arg(short, long, default_value = "http://127.0.0.1:9002")]
+    #[arg(short, long, default_value = "http://127.0.0.1:7094")]
     server: String,
 
     #[command(subcommand)]
