@@ -139,8 +139,8 @@ let (r, s) = protocol.complete_signature(&k1, &d1, &r, &s2, &s3)?;
 // 解密预处理：计算 T1 = D1 * C1
 let t1 = protocol.decrypt_prepare(&d1, &c1)?;
 
-// 完成解密（结合服务端返回的 T2）
-let plaintext = protocol.complete_decryption(&t2, &c3, &c2)?;
+// 完成解密（结合服务端返回的 T2，以及原始密文中的 C1、C3、C2）
+let plaintext = protocol.complete_decryption(&t2, &c1, &c3, &c2)?;
 ```
 
 ### 4. 标准 SM2 操作
