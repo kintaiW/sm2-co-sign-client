@@ -247,6 +247,8 @@ pub extern "C" fn cosign_complete_decryption(
     ctx: *const CoSignContext,
     t2: *const c_uchar,
     t2_len: c_ulong,
+    c1: *const c_uchar,
+    c1_len: c_ulong,
     c3: *const c_uchar,
     c3_len: c_ulong,
     c2: *const c_uchar,
@@ -254,16 +256,17 @@ pub extern "C" fn cosign_complete_decryption(
     out_plaintext: *mut c_uchar,
     out_len: *mut c_ulong,
 ) -> c_int {
-    if ctx.is_null() || t2.is_null() || c3.is_null() || c2.is_null() || out_plaintext.is_null() || out_len.is_null() {
+    if ctx.is_null() || t2.is_null() || c1.is_null() || c3.is_null() || c2.is_null() || out_plaintext.is_null() || out_len.is_null() {
         return COSIGN_ERR_NULL_PTR;
     }
 
     let ctx = unsafe { &*ctx };
     let t2_slice = unsafe { slice::from_raw_parts(t2, t2_len as usize) };
+    let c1_slice = unsafe { slice::from_raw_parts(c1, c1_len as usize) };
     let c3_slice = unsafe { slice::from_raw_parts(c3, c3_len as usize) };
     let c2_slice = unsafe { slice::from_raw_parts(c2, c2_len as usize) };
 
-    match ctx.protocol.complete_decryption(t2_slice, c3_slice, c2_slice) {
+    match ctx.protocol.complete_decryption(t2_slice, c1_slice, c3_slice, c2_slice) {
         Ok(plaintext) => {
             let len = plaintext.len();
             unsafe {
